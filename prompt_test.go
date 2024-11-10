@@ -203,16 +203,16 @@ func TestAskCancel(t *testing.T) {
 	is.Equal(name, "")
 }
 
-// func TestPasswordCancel(t *testing.T) {
-// 	is := is.New(t)
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	reader := io.NopCloser(bytes.NewBufferString("some password\n"))
-// 	prompt := prompter.New(os.Stdout, reader)
-// 	cancel() // Cancel the context before asking
-// 	_, err := prompt.Password(ctx, "What is your password?")
-// 	is.True(errors.Is(err, context.Canceled))
-// }
+func TestPasswordCancel(t *testing.T) {
+	is := is.New(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reader := io.NopCloser(bytes.NewBufferString("some password\n"))
+	prompt := prompter.New(os.Stdout, reader)
+	cancel() // Cancel the context before asking
+	_, err := prompt.Password(ctx, "What is your password?")
+	is.True(errors.Is(err, context.Canceled))
+}
 
 func TestConfirmCancel(t *testing.T) {
 	is := is.New(t)

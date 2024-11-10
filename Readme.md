@@ -1,6 +1,6 @@
 # Prompter
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/matthewmueller/socket.svg)](https://pkg.go.dev/github.com/matthewmueller/socket)
+[![Go Reference](https://pkg.go.dev/badge/github.com/matthewmueller/prompter.svg)](https://pkg.go.dev/github.com/matthewmueller/prompter)
 
 Minimal prompting library for Go.
 
@@ -9,8 +9,7 @@ Minimal prompting library for Go.
 - Fluent API
 - Supports inputs, passwords and confirmations
 - Supports validations, defaults and optionals
-- Cancelable context
-- Well-tested
+- Supports context canceling
 
 ## Install
 
@@ -39,6 +38,7 @@ func validPass(input string) error {
   }
 }
 
+// Passwords
 pass, err := prompt.Is(validPass).Password("What is your password?")
 
 // Confirmations
@@ -54,7 +54,7 @@ func validAge(input string) error {
   }
   return nil
 }
-prompt.Default("21").Is(validAge).Ask("What is your age?")
+age, err := prompt.Default("21").Is(validAge).Ask("What is your age?")
 ```
 
 ## Development

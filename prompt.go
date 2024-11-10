@@ -3,17 +3,19 @@ package prompter
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/muesli/cancelreader"
 	"golang.org/x/term"
 )
 
+// ErrRequired is returned when a required input is empty
 var ErrRequired = fmt.Errorf("prompter: input is required")
 
+// Default creates a default prompter using stdin and stdout
 func Default() *Prompter {
 	return New(os.Stdout, os.Stdin)
 }
@@ -21,12 +23,10 @@ func Default() *Prompter {
 // New created a default prompter
 func New(w io.Writer, r io.Reader) *Prompter {
 	fd := getFd(r)
-	cr, _ := cancelreader.NewReader(r)
 	return &Prompter{
-		writer:  w,
-		scanner: bufio.NewScanner(cr),
-		fd:      fd,
-		cancel:  cr.Cancel,
+		writer: w,
+		reader: bufio.NewReader(r),
+		fd:     fd,
 	}
 }
 
@@ -41,41 +41,47 @@ func getFd(r io.Reader) int {
 	return -1
 }
 
+// Prompter can ask for inputs and validate them
 type Prompter struct {
-	writer  io.Writer
-	scanner *bufio.Scanner
-	fd      int
-	cancel  func() bool
+	writer io.Writer
+	reader *bufio.Reader
+	fd     int
 }
 
+// Default sets the default value for the question
 func (p *Prompter) Default(defaultTo string) *Question {
 	q := newQuestion(p)
 	q.defaultTo = defaultTo
 	return q
 }
 
+// Optional sets the question as optional
 func (p *Prompter) Optional(optional bool) *Question {
 	q := newQuestion(p)
 	q.optional = optional
 	return q
 }
 
+// Is adds validators to the question
 func (p *Prompter) Is(validators ...func(string) error) *Question {
 	q := newQuestion(p)
 	q.validators = append(q.validators, validators...)
 	return q
 }
 
+// Ask asks a question and returns the input
 func (p *Prompter) Ask(ctx context.Context, prompt string) (string, error) {
 	q := newQuestion(p)
 	return q.Ask(ctx, prompt)
 }
 
+// Password asks for a password and returns the input
 func (p *Prompter) Password(ctx context.Context, prompt string) (string, error) {
 	q := newQuestion(p)
 	return q.Password(ctx, prompt)
 }
 
+// Confirm asks for a confirmation and returns the input
 func (p *Prompter) Confirm(ctx context.Context, prompt string) (bool, error) {
 	q := newQuestion(p)
 	return q.Confirm(ctx, prompt)
@@ -87,6 +93,7 @@ func newQuestion(p *Prompter) *Question {
 	}
 }
 
+// Question that can be asked
 type Question struct {
 	prompter   *Prompter
 	validators []func(string) error
@@ -98,8 +105,9 @@ func (q *Question) scanLine(inputCh chan<- string, errorCh chan<- error) {
 	p := q.prompter
 
 	// Read the input
-	if !p.scanner.Scan() {
-		if err := p.scanner.Err(); err != nil {
+	input, err := p.reader.ReadString('\n')
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
 			errorCh <- err
 			return
 		}
@@ -115,7 +123,7 @@ func (q *Question) scanLine(inputCh chan<- string, errorCh chan<- error) {
 	}
 
 	// Trim the input
-	input := strings.TrimRight(p.scanner.Text(), "\r\n")
+	input = strings.TrimRight(input, "\r\n")
 	inputCh <- input
 }
 
@@ -137,70 +145,89 @@ func (q *Question) scanPassword(inputCh chan<- string, errorCh chan<- error) {
 	q.scanLine(inputCh, errorCh)
 }
 
+// Default sets the default value for the question
 func (q *Question) Default(defaultTo string) *Question {
 	q.defaultTo = defaultTo
 	return q
 }
 
+// Optional sets the question as optional
 func (q *Question) Optional(optional bool) *Question {
 	q.optional = optional
 	return q
 }
 
+// Is adds validators to the question
 func (q *Question) Is(validators ...func(string) error) *Question {
 	q.validators = append(q.validators, validators...)
 	return q
 }
 
+// Reads the input from the reader
 func (q *Question) readInput(ctx context.Context) (string, error) {
-	inputCh := make(chan string)
-	defer close(inputCh)
-	errorCh := make(chan error)
-	defer close(errorCh)
+	// Check if the context has already been cancelled
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 
+	inputCh := make(chan string)
+	errorCh := make(chan error)
+
+	// Scan for the input in a goroutine, so we can listen for cancellations.
 	go q.scanLine(inputCh, errorCh)
 
+	// Wait for input, an error or the context to be cancelled
 	select {
 	case input := <-inputCh:
+		close(inputCh)
+		close(errorCh)
 		return input, nil
 	case err := <-errorCh:
+		close(inputCh)
+		close(errorCh)
 		return "", err
 	case <-ctx.Done():
-		// Cancel the underlying reader
-		q.prompter.cancel()
-
-		// Wait for the loop to exit
-		// TODO: this can hang
-		<-errorCh
-
-		// Return the canceled error
+		// In this case, we're leaking the goroutine that's reading the input.
+		// This is because we can't really cancel reads without limitations.
+		// This seems acceptable because typically when context is canceled, the
+		// process will exit shortly.
 		return "", ctx.Err()
 	}
 }
 
+// Reads the password from the reader
 func (q *Question) readPassword(ctx context.Context) (string, error) {
-	inputCh := make(chan string)
-	defer func() {
-		close(inputCh)
-	}()
-	errorCh := make(chan error)
-	defer func() {
-		fmt.Println("closing errorCh")
-		close(errorCh)
-	}()
+	// Check if the context has already been cancelled
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 
+	inputCh := make(chan string)
+	errorCh := make(chan error)
+
+	// Scan for the password in a goroutine, so we can listen for cancelations.
 	go q.scanPassword(inputCh, errorCh)
 
+	// Wait for input, an error or the context to be cancelled
 	select {
 	case input := <-inputCh:
+		close(inputCh)
+		close(errorCh)
 		return input, nil
 	case err := <-errorCh:
+		close(inputCh)
+		close(errorCh)
 		return "", err
 	case <-ctx.Done():
+		// In this case, we're leaking the goroutine that's reading the password.
+		// This is because we can't really cancel reads without limitations.
+		// This seems acceptable because typically when context is canceled, the
+		// process will exit shortly.
 		return "", ctx.Err()
 	}
 }
 
+// Ask asks a question and returns the input
 func (q *Question) Ask(ctx context.Context, prompt string) (string, error) {
 	p := q.prompter
 
@@ -234,6 +261,7 @@ retry:
 	return input, nil
 }
 
+// Password asks for a password and returns the input
 func (q *Question) Password(ctx context.Context, prompt string) (string, error) {
 	p := q.prompter
 
@@ -276,6 +304,7 @@ func isYes(s string) bool {
 	return false
 }
 
+// Confirm asks for a confirmation and returns the input
 func (q *Question) Confirm(ctx context.Context, prompt string) (bool, error) {
 	// Add a validator to ensure the input is yes or no
 	q.validators = append(q.validators, func(s string) error {
