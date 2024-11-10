@@ -5,6 +5,8 @@ go 1.23.0
 require (
 	github.com/matryer/is v1.4.1
 	github.com/matthewmueller/diff v0.0.3
+	github.com/matthewmueller/signals v0.0.1
+	github.com/muesli/cancelreader v0.2.2
 	golang.org/x/term v0.26.0
 )
 

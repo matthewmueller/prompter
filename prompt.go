@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/muesli/cancelreader"
 	"golang.org/x/term"
 )
 
@@ -20,10 +21,12 @@ func Default() *Prompter {
 // New created a default prompter
 func New(w io.Writer, r io.Reader) *Prompter {
 	fd := getFd(r)
+	cr, _ := cancelreader.NewReader(r)
 	return &Prompter{
 		writer:  w,
-		scanner: bufio.NewScanner(r),
+		scanner: bufio.NewScanner(cr),
 		fd:      fd,
+		cancel:  cr.Cancel,
 	}
 }
 
@@ -42,6 +45,7 @@ type Prompter struct {
 	writer  io.Writer
 	scanner *bufio.Scanner
 	fd      int
+	cancel  func() bool
 }
 
 func (p *Prompter) Default(defaultTo string) *Question {
@@ -153,23 +157,40 @@ func (q *Question) readInput(ctx context.Context) (string, error) {
 	defer close(inputCh)
 	errorCh := make(chan error)
 	defer close(errorCh)
+
 	go q.scanLine(inputCh, errorCh)
+
 	select {
 	case input := <-inputCh:
 		return input, nil
 	case err := <-errorCh:
 		return "", err
 	case <-ctx.Done():
+		// Cancel the underlying reader
+		q.prompter.cancel()
+
+		// Wait for the loop to exit
+		// TODO: this can hang
+		<-errorCh
+
+		// Return the canceled error
 		return "", ctx.Err()
 	}
 }
 
 func (q *Question) readPassword(ctx context.Context) (string, error) {
 	inputCh := make(chan string)
-	defer close(inputCh)
+	defer func() {
+		close(inputCh)
+	}()
 	errorCh := make(chan error)
-	defer close(errorCh)
+	defer func() {
+		fmt.Println("closing errorCh")
+		close(errorCh)
+	}()
+
 	go q.scanPassword(inputCh, errorCh)
+
 	select {
 	case input := <-inputCh:
 		return input, nil
