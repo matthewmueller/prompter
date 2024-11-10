@@ -15,15 +15,15 @@ import (
 // ErrRequired is returned when a required input is empty
 var ErrRequired = fmt.Errorf("prompter: input is required")
 
-// Default creates a default prompter using stdin and stdout
-func Default() *Prompter {
+// Default creates a default prompt using stdin and stdout
+func Default() *Prompt {
 	return New(os.Stdout, os.Stdin)
 }
 
-// New created a default prompter
-func New(w io.Writer, r io.Reader) *Prompter {
+// New prompt
+func New(w io.Writer, r io.Reader) *Prompt {
 	fd := getFd(r)
-	return &Prompter{
+	return &Prompt{
 		writer: w,
 		reader: bufio.NewReader(r),
 		fd:     fd,
@@ -41,53 +41,53 @@ func getFd(r io.Reader) int {
 	return -1
 }
 
-// Prompter can ask for inputs and validate them
-type Prompter struct {
+// Prompt can ask for inputs and validate them
+type Prompt struct {
 	writer io.Writer
 	reader *bufio.Reader
 	fd     int
 }
 
 // Default sets the default value for the question
-func (p *Prompter) Default(defaultTo string) *Question {
+func (p *Prompt) Default(defaultTo string) *Question {
 	q := newQuestion(p)
 	q.defaultTo = defaultTo
 	return q
 }
 
 // Optional sets the question as optional
-func (p *Prompter) Optional(optional bool) *Question {
+func (p *Prompt) Optional(optional bool) *Question {
 	q := newQuestion(p)
 	q.optional = optional
 	return q
 }
 
 // Is adds validators to the question
-func (p *Prompter) Is(validators ...func(string) error) *Question {
+func (p *Prompt) Is(validators ...func(string) error) *Question {
 	q := newQuestion(p)
 	q.validators = append(q.validators, validators...)
 	return q
 }
 
 // Ask asks a question and returns the input
-func (p *Prompter) Ask(ctx context.Context, prompt string) (string, error) {
+func (p *Prompt) Ask(ctx context.Context, prompt string) (string, error) {
 	q := newQuestion(p)
 	return q.Ask(ctx, prompt)
 }
 
 // Password asks for a password and returns the input
-func (p *Prompter) Password(ctx context.Context, prompt string) (string, error) {
+func (p *Prompt) Password(ctx context.Context, prompt string) (string, error) {
 	q := newQuestion(p)
 	return q.Password(ctx, prompt)
 }
 
 // Confirm asks for a confirmation and returns the input
-func (p *Prompter) Confirm(ctx context.Context, prompt string) (bool, error) {
+func (p *Prompt) Confirm(ctx context.Context, prompt string) (bool, error) {
 	q := newQuestion(p)
 	return q.Confirm(ctx, prompt)
 }
 
-func newQuestion(p *Prompter) *Question {
+func newQuestion(p *Prompt) *Question {
 	return &Question{
 		prompter: p,
 	}
@@ -95,7 +95,7 @@ func newQuestion(p *Prompter) *Question {
 
 // Question that can be asked
 type Question struct {
-	prompter   *Prompter
+	prompter   *Prompt
 	validators []func(string) error
 	defaultTo  string
 	optional   bool
