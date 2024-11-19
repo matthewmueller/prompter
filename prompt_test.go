@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 func TestAsk(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n27\n"))
+	reader := bytes.NewBufferString("Mark\n27\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -29,7 +28,7 @@ func TestAsk(t *testing.T) {
 func TestAskErrRequired(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n27\n"))
+	reader := bytes.NewBufferString("Mark\n27\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -45,7 +44,7 @@ func TestAskErrRequired(t *testing.T) {
 func TestAskOptional(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n"))
+	reader := bytes.NewBufferString("Mark\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -58,7 +57,7 @@ func TestAskOptional(t *testing.T) {
 func TestAskDefault(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n"))
+	reader := bytes.NewBufferString("Mark\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -72,7 +71,7 @@ func TestAskValidate(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
 	writer := new(bytes.Buffer)
-	reader := io.NopCloser(bytes.NewBufferString("Am\nAmy\n"))
+	reader := bytes.NewBufferString("Am\nAmy\n")
 	prompt := prompter.New(writer, reader)
 	validName := func(s string) error {
 		if len(s) < 3 {
@@ -89,7 +88,7 @@ func TestAskValidate(t *testing.T) {
 func TestAskDefaultGiven(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n27\n"))
+	reader := bytes.NewBufferString("Mark\n27\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -102,7 +101,7 @@ func TestAskDefaultGiven(t *testing.T) {
 func TestAskDefaultOptional(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n"))
+	reader := bytes.NewBufferString("Mark\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -115,7 +114,7 @@ func TestAskDefaultOptional(t *testing.T) {
 func TestAskDefaultOptionalGiven(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n27\n"))
+	reader := bytes.NewBufferString("Mark\n27\n")
 	prompt := prompter.New(os.Stdout, reader)
 	name, err := prompt.Ask(ctx, "What is your name?")
 	is.NoErr(err)
@@ -128,7 +127,7 @@ func TestAskDefaultOptionalGiven(t *testing.T) {
 func TestPassword(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("some password\n"))
+	reader := bytes.NewBufferString("some password\n")
 	prompt := prompter.New(os.Stdout, reader)
 	pass, err := prompt.Password(ctx, "What is your password?")
 	is.NoErr(err)
@@ -138,7 +137,7 @@ func TestPassword(t *testing.T) {
 func TestPasswordDefault(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString(""))
+	reader := bytes.NewBufferString("")
 	prompt := prompter.New(os.Stdout, reader)
 	pass, err := prompt.Default("idk").Password(ctx, "What is your password?")
 	is.NoErr(err)
@@ -148,7 +147,7 @@ func TestPasswordDefault(t *testing.T) {
 func TestPasswordOptional(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString(""))
+	reader := bytes.NewBufferString("")
 	prompt := prompter.New(os.Stdout, reader)
 	pass, err := prompt.Optional(true).Password(ctx, "What is your password?")
 	is.NoErr(err)
@@ -158,7 +157,7 @@ func TestPasswordOptional(t *testing.T) {
 func TestPasswordValidate(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("mypassword\nsome password\n"))
+	reader := bytes.NewBufferString("mypassword\nsome password\n")
 	prompt := prompter.New(os.Stdout, reader)
 	validate := func(s string) error {
 		if s != "some password" {
@@ -174,7 +173,7 @@ func TestPasswordValidate(t *testing.T) {
 func TestConfirmTrue(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("hello\nyes\n"))
+	reader := bytes.NewBufferString("hello\nyes\n")
 	prompt := prompter.New(os.Stdout, reader)
 	create, err := prompt.Confirm(ctx, "Create new user? (yes/no)")
 	is.NoErr(err)
@@ -184,7 +183,7 @@ func TestConfirmTrue(t *testing.T) {
 func TestConfirmFalse(t *testing.T) {
 	is := is.New(t)
 	ctx := context.Background()
-	reader := io.NopCloser(bytes.NewBufferString("hello\nno\n"))
+	reader := bytes.NewBufferString("hello\nno\n")
 	prompt := prompter.New(os.Stdout, reader)
 	create, err := prompt.Confirm(ctx, "Create new user? (yes/no)")
 	is.NoErr(err)
@@ -195,7 +194,7 @@ func TestAskCancel(t *testing.T) {
 	is := is.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	reader := io.NopCloser(bytes.NewBufferString("Mark\n"))
+	reader := bytes.NewBufferString("Mark\n")
 	prompt := prompter.New(os.Stdout, reader)
 	cancel() // Cancel the context before asking
 	name, err := prompt.Ask(ctx, "What is your name?")
@@ -207,7 +206,7 @@ func TestPasswordCancel(t *testing.T) {
 	is := is.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	reader := io.NopCloser(bytes.NewBufferString("some password\n"))
+	reader := bytes.NewBufferString("some password\n")
 	prompt := prompter.New(os.Stdout, reader)
 	cancel() // Cancel the context before asking
 	_, err := prompt.Password(ctx, "What is your password?")
@@ -218,7 +217,7 @@ func TestConfirmCancel(t *testing.T) {
 	is := is.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	reader := io.NopCloser(bytes.NewBufferString("yes\n"))
+	reader := bytes.NewBufferString("yes\n")
 	prompt := prompter.New(os.Stdout, reader)
 	cancel() // Cancel the context before asking
 	_, err := prompt.Confirm(ctx, "Create new user? (yes/no)")
